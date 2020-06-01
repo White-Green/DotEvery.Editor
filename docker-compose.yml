@@ -1,0 +1,16 @@
+version: '2'
+services:
+    # cargo:
+    #     build: docker/cargo
+    #     volumes:
+    #         - .:/code
+    nodewebpack:
+        build: docker/node
+        volumes:
+            - .:/code
+    nginx:
+        build: docker/nginx
+        volumes: 
+            - ./node/output:/usr/share/nginx/html:ro
+        ports:
+            - 8080:80
