@@ -1,3 +1,3 @@
 FROM node
 WORKDIR /code/node
-CMD npx webpack --watch
+CMD npx webpack

@@ -1,9 +1,9 @@
 version: '2'
 services:
-    # cargo:
-    #     build: docker/cargo
-    #     volumes:
-    #         - .:/code
+    cargo:
+        build: docker/cargo
+        volumes:
+            - .:/code
     nodewebpack:
         build: docker/node
         volumes:
