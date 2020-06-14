@@ -14,10 +14,11 @@ js-sys="0.3.39"
 yew = "0.15"
 wasm-bindgen = "0.2"
 wee_alloc="*"
+serde = "1.0.111"
 
 [dependencies.web-sys]
 version="0.3.39"
-features=["HtmlAnchorElement","Exception","CssStyleDeclaration"]
+features=["HtmlAnchorElement","Exception","CssStyleDeclaration","DomRect","Element","HtmlInputElement","Node","NodeList"]
 
 [profile.release]
 # less code to include into binary

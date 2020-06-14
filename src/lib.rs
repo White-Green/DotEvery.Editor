@@ -28,31 +28,27 @@ pub fn run_app() {
     let document = window.document().unwrap();
 
     if let Some(entry) = document.get_element_by_id("app") {
-        let props = DotEveryEditorProperties {
-            list: ProgramModuleListProperties {
-                children: vec![
-                    ProgramModuleProperties {
-                        child: ProgramModuleChildItems::None,
-                        options: vec![
+        let props = DotEveryEditorProperties::new(
+            ProgramModuleListProperties::new(
+                vec![
+                    ProgramModuleProperties::new(
+                        vec![
                             ProgramModuleOption::StringSign("VariableDefinition".to_string()),
-                            ProgramModuleOption::ProgramModule(Some(ProgramModuleProperties {
-                                child: ProgramModuleChildItems::None,
-                                options: vec![
-                                    ProgramModuleOption::StringInput("System.Int32".to_string()),
-                                ],
-                            })),
+                            ProgramModuleOption::ProgramModule(
+                                Some(ProgramModuleProperties::new(
+                                    vec![
+                                        ProgramModuleOption::StringInput("System.Int32".to_string()),
+                                    ],
+                                    ProgramModuleChildItems::None))),
                         ],
-                    },
-                    ProgramModuleProperties {
-                        child: ProgramModuleChildItems::None,
-                        options: vec![
+                        ProgramModuleChildItems::None),
+                    ProgramModuleProperties::new(
+                        vec![
                             ProgramModuleOption::StringSign("VariableDefinition".to_string()),
                             ProgramModuleOption::ProgramModule(None),
                         ],
-                    },
-                ],
-            },
-        };
+                        ProgramModuleChildItems::None)
+                ]));
         App::<DotEveryEditor>::new().mount_with_props(entry, props);
     } else {
         clog!("entry point element is not found.");
