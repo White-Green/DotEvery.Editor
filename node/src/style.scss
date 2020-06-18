@@ -1,0 +1,49 @@
+@import "../node_modules/bootstrap/scss/bootstrap.scss";
+
+.program_module_list {
+  display: flex;
+  flex-direction: column;
+  > .program_module {
+    margin: 8px;
+  }
+  > .program_module_placeholder {
+    margin: 8px;
+  }
+}
+
+.program_module {
+  margin: 3px;
+  border: solid 1px #444;
+  align-self: flex-start;
+}
+
+.program_module_placeholder {
+  margin: 3px;
+  border: solid 1px #444;
+  align-self: flex-start;
+  background: tomato;
+}
+
+.program_module_options {
+  display: flex;
+}
+
+.program_module_option {
+  display: block;
+  margin: 8px;
+}
+
+.program_module_option_string_sign {
+  display: flex;
+  align-items: center;
+  user-select: none;
+}
+
+.program_module_option_string_input {
+}
+
+.program_module_option_module {
+  min-width: 50px;
+  min-height: 10px;
+  border: solid 1px #666;
+}

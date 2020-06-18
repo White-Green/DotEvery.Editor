@@ -19,7 +19,7 @@ pub(crate) enum DotEveryEditorMessage {
 }
 
 #[derive(Clone, Properties)]
-pub struct DotEveryEditorProperties {
+pub(crate) struct DotEveryEditorProperties {
     list: ProgramModuleListProperties,
 }
 
