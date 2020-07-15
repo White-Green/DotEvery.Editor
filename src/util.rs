@@ -16,3 +16,7 @@ pub(crate) struct Rect {
     pub w: f64,
     pub h: f64,
 }
+
+pub(crate) trait Isomorphism {
+    fn isomorphisms(&self, other: &Self) -> bool;
+}

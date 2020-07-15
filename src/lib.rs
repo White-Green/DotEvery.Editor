@@ -1,22 +1,25 @@
-use wasm_bindgen::prelude::*;
-use yew::prelude::*;
+extern crate wee_alloc;
+
 use js_sys::Object;
 use wasm_bindgen::JsCast;
-use web_sys::Window;
-use web_sys::HtmlElement;
-use web_sys::HtmlAnchorElement;
+use wasm_bindgen::prelude::*;
 use web_sys::Document;
 use web_sys::Exception;
-use crate::program_module::program_module_list::{ProgramModuleListProperties, ProgramModuleList};
-use crate::program_module::program_module::{ProgramModuleProperties, ProgramModuleOption, ProgramModuleChildItems};
-use crate::dotevery_editor::{DotEveryEditorProperties, DotEveryEditor};
+use web_sys::HtmlAnchorElement;
+use web_sys::HtmlElement;
+use web_sys::Window;
+use yew::prelude::*;
 
-extern crate wee_alloc;
+use crate::components::dotevery_editor::{DotEveryEditorComponent, DotEveryEditorProperties};
+use crate::logic::dotevery_editor::DotEveryEditor;
+use crate::logic::program_module::{ProgramModule, ProgramModuleChildItems, ProgramModuleOption};
+use crate::logic::program_module_list::ProgramModuleList;
+
 
 #[macro_use]
 mod util;
-mod program_module;
-mod dotevery_editor;
+mod components;
+mod logic;
 
 #[global_allocator]
 static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
@@ -28,28 +31,28 @@ pub fn run_app() {
     let document = window.document().unwrap();
 
     if let Some(entry) = document.get_element_by_id("app") {
-        let props = DotEveryEditorProperties::new(
-            ProgramModuleListProperties::new(
+        let props = DotEveryEditor::new(
+            ProgramModuleList::new(
                 vec![
-                    ProgramModuleProperties::new(
+                    ProgramModule::new(
                         vec![
                             ProgramModuleOption::StringSign("VariableDefinition".to_string()),
                             ProgramModuleOption::ProgramModule(
-                                Some(ProgramModuleProperties::new(
+                                Some(ProgramModule::new(
                                     vec![
                                         ProgramModuleOption::StringInput("System.Int32".to_string()),
                                     ],
                                     ProgramModuleChildItems::None))),
                         ],
                         ProgramModuleChildItems::None),
-                    ProgramModuleProperties::new(
+                    ProgramModule::new(
                         vec![
                             ProgramModuleOption::StringSign("VariableDefinition".to_string()),
                             ProgramModuleOption::ProgramModule(None),
                         ],
                         ProgramModuleChildItems::None)
                 ]));
-        App::<DotEveryEditor>::new().mount_with_props(entry, props);
+        App::<DotEveryEditorComponent>::new().mount_with_props(entry, DotEveryEditorProperties { dotevery_editor: props });
     } else {
         clog!("entry point element is not found.");
     }

@@ -1,13 +1,20 @@
-use crate::util;
-use yew::{ComponentLink, Component, Html};
-use yew::prelude::*;
-use wasm_bindgen::prelude::*;
 use wasm_bindgen::JsCast;
-use crate::program_module::program_module_list::{ProgramModuleListProperties, ProgramModuleList};
-use crate::program_module::program_module::{ProgramModuleProperties, ProgramModule};
-use crate::program_module::drag_module_agent::{DragModuleAgent, DragModuleAgentInputMessage};
+use wasm_bindgen::prelude::*;
+use yew::{Component, ComponentLink, Html};
+use yew::prelude::*;
 
-pub(crate) struct DotEveryEditor {
+use crate::components::drag_module_agent::{DragModuleAgent, DragModuleAgentInputMessage};
+use crate::components::program_module::ProgramModuleComponent;
+use crate::components::program_module_list::{ProgramModuleListComponent, ProgramModuleListProperties};
+use crate::logic::dotevery_editor::DotEveryEditor;
+use crate::util;
+
+#[derive(Clone, Properties)]
+pub(crate) struct DotEveryEditorProperties {
+    pub(crate) dotevery_editor: DotEveryEditor,
+}
+
+pub(crate) struct DotEveryEditorComponent {
     link: ComponentLink<Self>,
     props: DotEveryEditorProperties,
     drag_module_agent_bridge: Box<dyn Bridge<DragModuleAgent>>,
@@ -18,20 +25,7 @@ pub(crate) enum DotEveryEditorMessage {
     DragModuleAgentMessage(DragModuleAgentInputMessage),
 }
 
-#[derive(Clone, Properties)]
-pub(crate) struct DotEveryEditorProperties {
-    list: ProgramModuleListProperties,
-}
-
-impl DotEveryEditorProperties {
-    pub fn new(list: ProgramModuleListProperties) -> Self {
-        Self {
-            list,
-        }
-    }
-}
-
-impl Component for DotEveryEditor {
+impl Component for DotEveryEditorComponent {
     type Message = DotEveryEditorMessage;
     type Properties = DotEveryEditorProperties;
 
@@ -60,11 +54,15 @@ impl Component for DotEveryEditor {
     }
 
     fn view(&self) -> Html {
-        let list = self.props.list.clone();
+        let list = self.props.dotevery_editor.list.clone();
+        let list = ProgramModuleListProperties {
+            program_module_list: list,
+            rect_changed_callback: None,
+        };
         html! {
             <div class="dotevery_editor">
                 {"DotEvery.Editor"}
-                <ProgramModuleList with list/>
+                <ProgramModuleListComponent with list/>
             </div>
         }
     }

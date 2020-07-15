@@ -1,13 +1,22 @@
-use yew::{ComponentLink, Component, Html};
-use yew::prelude::*;
-use web_sys::Element;
-use crate::program_module::program_module::{ProgramModuleProperties, ProgramModule};
-use crate::program_module::drag_module_agent::{DragModuleAgent, DragModuleAgentInputMessage, DragModuleAgentOutputMessage};
-use uuid::Uuid;
-use crate::util::Rect;
 use std::collections::HashMap;
 
-pub(crate) struct ProgramModuleList {
+use uuid::Uuid;
+use web_sys::Element;
+use yew::{Component, ComponentLink, Html};
+use yew::prelude::*;
+
+use crate::components::drag_module_agent::{DragModuleAgent, DragModuleAgentInputMessage, DragModuleAgentOutputMessage};
+use crate::components::program_module::{ProgramModuleComponent, ProgramModuleProperties};
+use crate::logic::program_module_list::ProgramModuleList;
+use crate::util::Rect;
+
+#[derive(Clone, Properties)]
+pub(crate) struct ProgramModuleListProperties {
+    pub(crate) program_module_list: ProgramModuleList,
+    pub(crate) rect_changed_callback: Option<Callback<(Uuid, Rect)>>,
+}
+
+pub(crate) struct ProgramModuleListComponent {
     link: ComponentLink<Self>,
     props: ProgramModuleListProperties,
     hovering_module: Option<(i32, i32, f64, f64)>,
@@ -25,35 +34,16 @@ pub(crate) enum ProgramModuleListMessage {
     RegisterUuid,
 }
 
-#[derive(Clone, Properties)]
-pub(crate) struct ProgramModuleListProperties {
-    id: Uuid,
-    pub(crate) parent: Option<Uuid>,
-    children: Vec<ProgramModuleProperties>,
-    rect_changed_callback: Option<Callback<(Uuid, Rect)>>,
-}
-
-impl ProgramModuleListProperties {
-    pub fn new(children: Vec<ProgramModuleProperties>) -> Self {
-        Self {
-            id: Uuid::new_v4(),
-            parent: None,
-            children,
-            rect_changed_callback: None,
-        }
-    }
-}
-
-impl Component for ProgramModuleList {
+impl Component for ProgramModuleListComponent {
     type Message = ProgramModuleListMessage;
     type Properties = ProgramModuleListProperties;
 
     fn create(props: Self::Properties, link: ComponentLink<Self>) -> Self {
         let mut props = props;
-        let rect_changed_callback = link.callback(|(id, rect)| Self::Message::UpdateChildRect { id, rect });
-        for module in &mut props.children {
-            module.parent = Some(props.id);
-            module.rect_changed_callback = Some(rect_changed_callback.clone());
+        // let rect_changed_callback = link.callback(|(id, rect)| Self::Message::UpdateChildRect { id, rect });
+        for module in &mut props.program_module_list.children {
+            module.parent = Some(props.program_module_list.id);
+            // module.rect_changed_callback = Some(rect_changed_callback.clone());
         }
         let callback = link.callback(
             |msg| match msg {
@@ -63,10 +53,10 @@ impl Component for ProgramModuleList {
                 _ => Self::Message::Ignore
             });
         let mut bridge = DragModuleAgent::bridge(callback);
-        if let Some(parent) = props.parent {
-            bridge.send(DragModuleAgentInputMessage::SetParentId { my_id: props.id, parent_id: parent });
+        if let Some(parent) = props.program_module_list.parent {
+            bridge.send(DragModuleAgentInputMessage::SetParentId { my_id: props.program_module_list.id, parent_id: parent });
         } else {
-            bridge.send(DragModuleAgentInputMessage::SetMyId(props.id));
+            bridge.send(DragModuleAgentInputMessage::SetMyId(props.program_module_list.id));
         }
         Self {
             link,
@@ -85,7 +75,7 @@ impl Component for ProgramModuleList {
                 if let Some(element) = self.self_ref.cast::<Element>() {
                     let rect = element.get_bounding_client_rect();
                     if let Some(callback) = &self.props.rect_changed_callback {
-                        callback.emit((self.props.id, Rect {
+                        callback.emit((self.props.program_module_list.id, Rect {
                             x: rect.x(),
                             y: rect.y(),
                             w: rect.width(),
@@ -115,7 +105,7 @@ impl Component for ProgramModuleList {
                 true
             }
             Self::Message::RegisterUuid => {
-                self.drag_module_agent.send(DragModuleAgentInputMessage::SetMyId(self.props.id));
+                self.drag_module_agent.send(DragModuleAgentInputMessage::SetMyId(self.props.program_module_list.id));
                 false
             }
         }
@@ -129,73 +119,53 @@ impl Component for ProgramModuleList {
 
     fn view(&self) -> Html {
         let options = if let Some((x, y, w, h)) = self.hovering_module {
-            if self.props.children.len() == 0 {
-                vec![
-                    html! {
-                        <div class="program_module_placeholder" style={format!("width: {}px; height: {}px;", w, h)}/>
-                    }
-                ]
+            if self.props.program_module_list.children.len() == 0 {
+                vec![program_module_placeholder(w)]
             } else {
                 let mut options = Vec::new();
                 let mut placed_placeholder = false;
-                for p in &self.props.children {
+                for p in &self.props.program_module_list.children {
                     let rect = &self.child_rectangles[&p.id];
                     if !placed_placeholder && (y as f64) < rect.y {
-                        options.push(
-                            html! {
-                                <div class="program_module_placeholder" style={format!("width: {}px; height: {}px;", w, h)}/>
-                            }
-                        );
+                        options.push(program_module_placeholder(w));
                         placed_placeholder = true;
                     } else {
-                        options.push(
-                            html! {
-                                <div style="width: 0; height: 0;"/>
-                            }
-                        );
+                        options.push(program_module_placeholder_ignore());
                     }
                     let p = p.clone();
+                    let p = ProgramModuleProperties {
+                        program_module: p,
+                        rect_changed_callback: Some(self.link.callback(|(id, rect)| ProgramModuleListMessage::UpdateChildRect { id, rect })),
+                    };
                     options.push(
                         html! {
-                            <ProgramModule with p/>
+                            <ProgramModuleComponent with p/>
                         }
                     )
                 }
                 if !placed_placeholder {
-                    options.push(
-                        html! {
-                            <div class="program_module_placeholder" style={format!("width: {}px; height: {}px;", w, h)}/>
-                        }
-                    );
+                    options.push(program_module_placeholder(w));
                 } else {
-                    options.push(
-                        html! {
-                            <div style="width: 0; height: 0;"/>
-                        }
-                    );
+                    options.push(program_module_placeholder_ignore());
                 }
                 options
             }
         } else {
             let mut options = Vec::new();
-            for p in &self.props.children {
-                options.push(
-                    html! {
-                        <div style="width: 0; height: 0;"/>
-                    }
-                );
+            for p in &self.props.program_module_list.children {
+                options.push(program_module_placeholder_ignore());
                 let p = p.clone();
+                let p = ProgramModuleProperties {
+                    program_module: p,
+                    rect_changed_callback: Some(self.link.callback(|(id, rect)| ProgramModuleListMessage::UpdateChildRect { id, rect })),
+                };
                 options.push(
                     html! {
-                        <ProgramModule with p/>
+                        <ProgramModuleComponent with p/>
                     }
                 );
             }
-            options.push(
-                html! {
-                    <div style="width: 0; height: 0;"/>
-                }
-            );
+            options.push(program_module_placeholder_ignore());
             options
         };
         html! {
@@ -209,5 +179,17 @@ impl Component for ProgramModuleList {
         if first_render {
             self.link.send_message(Self::Message::UpdateSelfRect);
         }
+    }
+}
+
+fn program_module_placeholder(width: f64) -> Html {
+    html! {
+        <div class="program_module_placeholder_hovered" style={format!("width: {}px;", width)}/>
+    }
+}
+
+fn program_module_placeholder_ignore() -> Html {
+    html! {
+        <div class="program_module_placeholder"/>
     }
 }

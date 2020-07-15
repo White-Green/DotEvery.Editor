@@ -3,10 +3,8 @@
 .program_module_list {
   display: flex;
   flex-direction: column;
+
   > .program_module {
-    margin: 8px;
-  }
-  > .program_module_placeholder {
     margin: 8px;
   }
 }
@@ -17,11 +15,31 @@
   align-self: flex-start;
 }
 
-.program_module_placeholder {
-  margin: 3px;
+.program_module_placeholder_hovered {
+  height: 5px;
+  margin: 0 8px;
   border: solid 1px #444;
   align-self: flex-start;
   background: tomato;
+}
+
+.program_module_placeholder {
+  visibility: collapse;
+}
+
+.program_module_option_program_module_placeholder_hovered {
+  margin: 3px;
+  min-width: 50px;
+  min-height: 10px;
+  align-self: stretch;
+  border: solid 1px #444;
+  background: tomato;
+}
+
+.program_module_option_program_module_placeholder {
+  margin: 3px;
+  min-width: 50px;
+  min-height: 10px;
 }
 
 .program_module_options {
@@ -43,7 +61,9 @@
 }
 
 .program_module_option_module {
-  min-width: 50px;
+  min-width: 58px;
   min-height: 10px;
   border: solid 1px #666;
+  display: flex;
+  flex-direction: row;
 }
