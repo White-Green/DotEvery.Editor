@@ -1,4 +1,5 @@
 use uuid::Uuid;
+use wasm_bindgen::__rt::core::hint::unreachable_unchecked;
 
 use crate::logic::dotevery_editor::DotEveryEditorErrorMessage;
 use crate::logic::program_module::{ProgramModule, ProgramModuleChildItems, ProgramModuleOption};
@@ -121,16 +122,23 @@ fn program_module_list_add_test() {
     let mut list = new_module_list();
     let mut expect = list.clone();
     let module = new_module();
-    expect.children.insert(3, module.clone());
+    let mut module1 = module.clone();
+    module1.parent = Some(list.id.clone());
+    expect.children.insert(3, module1);
     assert_eq!(list.add(list.id, 3, module), Ok(()));
     assert_eq!(list, expect);
 
     let mut list = new_module_list();
     let mut expect = list.clone();
     let module = new_module();
-    expect.children[3].options[3] = ProgramModuleOption::ProgramModule(Some(module.clone()));
+    let mut module1 = module.clone();
+    module1.parent = Some(expect.children[3].id.clone());
+    expect.children[3].options[3] = ProgramModuleOption::ProgramModule(Some(module1));
     assert_eq!(list.add(list.children[3].id, 3, module), Ok(()));
     assert_eq!(list, expect);
+    if let ProgramModuleOption::ProgramModule(Some(module)) = &list.children[3].options[3] {
+        assert_eq!(module.parent, Some(list.children[3].id));
+    } else { unreachable!(); }
 }
 
 #[test]

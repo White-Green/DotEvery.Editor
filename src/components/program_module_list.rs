@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use web_sys::Element;
 use yew::{Component, ComponentLink, Html};
@@ -7,6 +8,7 @@ use yew::prelude::*;
 
 use crate::components::drag_module_agent::{DragModuleAgent, DragModuleAgentInputMessage, DragModuleAgentOutputMessage};
 use crate::components::program_module::{ProgramModuleComponent, ProgramModuleProperties};
+use crate::logic::dotevery_editor_controller::DotEveryEditorController;
 use crate::logic::program_module_list::ProgramModuleList;
 use crate::util::Rect;
 
@@ -16,11 +18,12 @@ pub(crate) struct ProgramModuleListProperties {
     pub(crate) rect_changed_callback: Option<Callback<(Uuid, Rect)>>,
 }
 
-pub(crate) struct ProgramModuleListComponent {
+pub(crate) struct ProgramModuleListComponent<Controller: 'static + DotEveryEditorController + Serialize + Deserialize<'static>> {
     link: ComponentLink<Self>,
     props: ProgramModuleListProperties,
     hovering_module: Option<(i32, i32, f64, f64)>,
-    drag_module_agent: Box<dyn Bridge<DragModuleAgent>>,
+    hovering_index: Option<usize>,
+    drag_module_agent: Box<dyn Bridge<DragModuleAgent<Controller>>>,
     child_rectangles: HashMap<Uuid, Rect>,
     self_ref: NodeRef,
 }
@@ -34,17 +37,11 @@ pub(crate) enum ProgramModuleListMessage {
     RegisterUuid,
 }
 
-impl Component for ProgramModuleListComponent {
+impl<Controller: 'static + DotEveryEditorController + Serialize + Deserialize<'static>> Component for ProgramModuleListComponent<Controller> {
     type Message = ProgramModuleListMessage;
     type Properties = ProgramModuleListProperties;
 
-    fn create(props: Self::Properties, link: ComponentLink<Self>) -> Self {
-        let mut props = props;
-        // let rect_changed_callback = link.callback(|(id, rect)| Self::Message::UpdateChildRect { id, rect });
-        for module in &mut props.program_module_list.children {
-            module.parent = Some(props.program_module_list.id);
-            // module.rect_changed_callback = Some(rect_changed_callback.clone());
-        }
+    fn create(mut props: Self::Properties, link: ComponentLink<Self>) -> Self {
         let callback = link.callback(
             |msg| match msg {
                 DragModuleAgentOutputMessage::MoveHoveringModule { x, y, module_w, module_h } => Self::Message::MoveHoveringModule { x, y, module_w, module_h },
@@ -62,6 +59,7 @@ impl Component for ProgramModuleListComponent {
             link,
             props,
             hovering_module: None,
+            hovering_index: None,
             drag_module_agent: bridge,
             child_rectangles: HashMap::new(),
             self_ref: NodeRef::default(),
@@ -98,58 +96,69 @@ impl Component for ProgramModuleListComponent {
             }
             Self::Message::MoveHoveringModule { x, y, module_w, module_h } => {
                 self.hovering_module = Some((x, y, module_w, module_h));
+                let mut index = self.props.program_module_list.children.len();
+                for (i, module) in self.props.program_module_list.children.iter().enumerate().rev() {
+                    if let Some(rect) = self.child_rectangles.get(&module.id) {
+                        if (y as f64) < rect.y {
+                            index = i;
+                        }
+                    }
+                }
+                self.hovering_index = Some(index);
+                self.drag_module_agent.send(DragModuleAgentInputMessage::UpdateHoveringIndex(Some(index)));
                 true
             }
             Self::Message::LeaveHoveringModule => {
                 self.hovering_module = None;
+                self.hovering_index = None;
                 true
             }
             Self::Message::RegisterUuid => {
-                self.drag_module_agent.send(DragModuleAgentInputMessage::SetMyId(self.props.program_module_list.id));
+                //self.drag_module_agent.send(DragModuleAgentInputMessage::SetMyId(self.props.program_module_list.id));
                 false
             }
         }
     }
 
     fn change(&mut self, props: Self::Properties) -> bool {
+        if self.props.program_module_list == props.program_module_list { return false; }
+        if let Some(parent) = props.program_module_list.parent {
+            self.drag_module_agent.send(DragModuleAgentInputMessage::SetParentId { my_id: props.program_module_list.id, parent_id: parent });
+        } else {
+            self.drag_module_agent.send(DragModuleAgentInputMessage::SetMyId(props.program_module_list.id));
+        }
+        self.child_rectangles.clear();
         self.props = props;
         true
     }
 
 
     fn view(&self) -> Html {
-        let options = if let Some((x, y, w, h)) = self.hovering_module {
-            if self.props.program_module_list.children.len() == 0 {
-                vec![program_module_placeholder(w)]
-            } else {
-                let mut options = Vec::new();
-                let mut placed_placeholder = false;
-                for p in &self.props.program_module_list.children {
-                    let rect = &self.child_rectangles[&p.id];
-                    if !placed_placeholder && (y as f64) < rect.y {
-                        options.push(program_module_placeholder(w));
-                        placed_placeholder = true;
-                    } else {
-                        options.push(program_module_placeholder_ignore());
-                    }
-                    let p = p.clone();
-                    let p = ProgramModuleProperties {
-                        program_module: p,
-                        rect_changed_callback: Some(self.link.callback(|(id, rect)| ProgramModuleListMessage::UpdateChildRect { id, rect })),
-                    };
-                    options.push(
-                        html! {
-                            <ProgramModuleComponent with p/>
-                        }
-                    )
-                }
-                if !placed_placeholder {
-                    options.push(program_module_placeholder(w));
+        let options = if let Some(index) = self.hovering_index {
+            let mut options = Vec::new();
+            for (i, p) in self.props.program_module_list.children.iter().enumerate() {
+                if i == index {
+                    options.push(program_module_placeholder(100f64));
                 } else {
                     options.push(program_module_placeholder_ignore());
                 }
-                options
+                let p = p.clone();
+                let p = ProgramModuleProperties {
+                    program_module: p,
+                    rect_changed_callback: Some(self.link.callback(|(id, rect)| ProgramModuleListMessage::UpdateChildRect { id, rect })),
+                };
+                options.push(
+                    html! {
+                        <ProgramModuleComponent<Controller> with p/>
+                    }
+                );
             }
+            if index == self.props.program_module_list.children.len() {
+                options.push(program_module_placeholder(100f64));
+            } else {
+                options.push(program_module_placeholder_ignore());
+            }
+            options
         } else {
             let mut options = Vec::new();
             for p in &self.props.program_module_list.children {
@@ -161,7 +170,7 @@ impl Component for ProgramModuleListComponent {
                 };
                 options.push(
                     html! {
-                        <ProgramModuleComponent with p/>
+                        <ProgramModuleComponent<Controller> with p/>
                     }
                 );
             }
@@ -170,15 +179,14 @@ impl Component for ProgramModuleListComponent {
         };
         html! {
             <div ref=self.self_ref.clone() class="program_module_list">
+                {self.props.program_module_list.id}
                 {for options}
             </div>
         }
     }
 
     fn rendered(&mut self, first_render: bool) {
-        if first_render {
-            self.link.send_message(Self::Message::UpdateSelfRect);
-        }
+        self.link.send_message(Self::Message::UpdateSelfRect);
     }
 }
 

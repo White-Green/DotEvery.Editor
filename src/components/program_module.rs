@@ -1,5 +1,6 @@
 use std::collections::HashMap;
 
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use wasm_bindgen::JsCast;
 use web_sys::{Element, HtmlElement, HtmlInputElement};
@@ -7,6 +8,7 @@ use yew::{Component, ComponentLink, Html};
 use yew::prelude::*;
 
 use crate::components::drag_module_agent::{DragModuleAgent, DragModuleAgentInputMessage, DragModuleAgentOutputMessage};
+use crate::logic::dotevery_editor_controller::DotEveryEditorController;
 use crate::logic::program_module::{ProgramModule, ProgramModuleChildItems, ProgramModuleOption};
 use crate::util::Rect;
 
@@ -16,14 +18,14 @@ pub(crate) struct ProgramModuleProperties {
     pub(crate) rect_changed_callback: Option<Callback<(Uuid, Rect)>>,
 }
 
-pub(crate) struct ProgramModuleComponent {
+pub(crate) struct ProgramModuleComponent<Controller: 'static + DotEveryEditorController + Serialize + Deserialize<'static>> {
     link: ComponentLink<Self>,
     props: ProgramModuleProperties,
     self_ref: NodeRef,
     options_node_ref: Vec<NodeRef>,
-    drag_module_agent_bridge: Box<dyn Bridge<DragModuleAgent>>,
-    child_rectangles: HashMap<Uuid, Rect>,
+    drag_module_agent_bridge: Box<dyn Bridge<DragModuleAgent<Controller>>>,
     hovering_module: Option<(i32, i32, f64, f64)>,
+    hovering_index: Option<usize>,
     dragging: bool,
     element_x: i32,
     element_y: i32,
@@ -43,7 +45,7 @@ pub(crate) enum ProgramModuleMessage {
     RegisterUuid,
 }
 
-impl Component for ProgramModuleComponent {
+impl<Controller: 'static + DotEveryEditorController + Serialize + Deserialize<'static>> Component for ProgramModuleComponent<Controller> {
     type Message = ProgramModuleMessage;
     type Properties = ProgramModuleProperties;
 
@@ -60,31 +62,22 @@ impl Component for ProgramModuleComponent {
                     _ => Self::Message::Ignore,
                 }
         );
-        // let rect_changed_callback = link.callback(|(id, rect)| Self::Message::UpdateChildRect { id, rect });
-        let mut props = props;
-        for option in &mut props.program_module.options {
-            if let ProgramModuleOption::ProgramModule(Some(module)) = option {
-                module.parent = Some(props.program_module.id);
-                // module.rect_changed_callback = Some(rect_changed_callback.clone());
-            }
-        }
-        if let ProgramModuleChildItems::Block(vec) = &mut props.program_module.child {}//TODO:
         let mut bridge = DragModuleAgent::bridge(callback);
         if let Some(parent) = props.program_module.parent {
             bridge.send(DragModuleAgentInputMessage::SetParentId { my_id: props.program_module.id, parent_id: parent });
         } else {
             bridge.send(DragModuleAgentInputMessage::SetMyId(props.program_module.id));
         }
-        let options_node_ref = vec![NodeRef::default(); props.program_module.options.len()];
+        let options_node_ref = (0..props.program_module.options.len()).map(|_| NodeRef::default()).collect();
         Self {
             link,
             props,
             self_ref: NodeRef::default(),
             options_node_ref,
             drag_module_agent_bridge: bridge,
-            child_rectangles: HashMap::new(),
             dragging: false,
             hovering_module: None,
+            hovering_index: None,
             element_x: 0,
             element_y: 0,
         }
@@ -94,12 +87,14 @@ impl Component for ProgramModuleComponent {
         match msg {
             Self::Message::Ignore => false,
             Self::Message::Drag { mouse_x: x, mouse_y: y } => {
+                clog!("call TryStartDrag");
                 if !self.dragging {
                     let self_element = self.self_ref.cast::<Element>().unwrap();
                     let rect = self_element.get_bounding_client_rect();
                     self.drag_module_agent_bridge.send(DragModuleAgentInputMessage::TryStartDrag {
                         offset_x: x - rect.x().round() as i32,
                         offset_y: y - rect.y().round() as i32,
+                        module: self.props.program_module.clone(),
                     });
                 }
                 self.drag_module_agent_bridge.send(DragModuleAgentInputMessage::UpdateMousePosition { x, y });
@@ -124,6 +119,29 @@ impl Component for ProgramModuleComponent {
             }
             Self::Message::MoveHoveringModule { x, y, module_w, module_h } => {
                 self.hovering_module = Some((x, y, module_w, module_h));
+
+                self.hovering_index = None;
+                for (i, (option, node_ref)) in self.props.program_module.options.iter().zip(&self.options_node_ref).enumerate() {
+                    if let ProgramModuleOption::ProgramModule(None) = option {
+                        if let Some(element) = node_ref.cast::<Element>() {
+                            let rect = element.get_bounding_client_rect();
+                            let x = x as f64;
+                            let y = y as f64;
+                            if rect.x() <= x && x <= rect.x() + rect.width() &&
+                                rect.y() <= y && y <= rect.y() + rect.height() {
+                                self.hovering_index = Some(i);
+                                break;
+                            }
+                        }
+                    }
+                }
+                if let Some(val) = self.hovering_index {
+                    clog!("update hovering index", format!("Some({})", val));
+                } else {
+                    clog!("update hovering index", "None");
+                }
+                self.drag_module_agent_bridge.send(DragModuleAgentInputMessage::UpdateHoveringIndex(self.hovering_index.clone()));
+
                 self.link.send_message(Self::Message::UpdateSelfRect);
                 true
             }
@@ -159,30 +177,36 @@ impl Component for ProgramModuleComponent {
                 false
             }
             Self::Message::UpdateChildRect { id, rect } => {
-                self.child_rectangles.insert(id, rect);
                 self.link.send_message(Self::Message::UpdateSelfRect);
                 false
             }
             Self::Message::RegisterUuid => {
-                clog!("RegisterUuid");
-                self.drag_module_agent_bridge.send(DragModuleAgentInputMessage::SetMyId(self.props.program_module.id));
+                // clog!("RegisterUuid");
+                //self.drag_module_agent_bridge.send(DragModuleAgentInputMessage::SetMyId(self.props.program_module.id));
                 false
             }
         }
     }
 
-    fn change(&mut self, _props: Self::Properties) -> bool {
-        self.props = _props;
+    fn change(&mut self, props: Self::Properties) -> bool {
+        if self.props.program_module == props.program_module { return false; }
+        self.options_node_ref = (0..props.program_module.options.len()).map(|_| NodeRef::default()).collect();
+        if let Some(id) = &props.program_module.parent {
+            self.drag_module_agent_bridge.send(DragModuleAgentInputMessage::SetParentId { my_id: props.program_module.id.clone(), parent_id: id.clone() });
+        } else {
+            self.drag_module_agent_bridge.send(DragModuleAgentInputMessage::SetMyId(props.program_module.id.clone()));
+        }
+        self.props = props;
         true
     }
 
     fn view(&self) -> Html {
         let options = self.props.program_module.options.iter().enumerate().map(
             |(i, o)| match o {
-                ProgramModuleOption::StringSign(s) => ProgramModuleComponent::render_string_sign(self.options_node_ref[i].clone(), s.clone()),
-                ProgramModuleOption::StringInput(s) => ProgramModuleComponent::render_string_input(
+                ProgramModuleOption::StringSign(s) => Self::render_string_sign(self.options_node_ref[i].clone(), s.clone()),
+                ProgramModuleOption::StringInput(s) => Self::render_string_input(
                     self.options_node_ref[i].clone(),
-                    self.link.callback(ProgramModuleComponent::string_input_mousemove),
+                    self.link.callback(Self::string_input_mousemove),
                     s.clone()),
                 ProgramModuleOption::ProgramModule(p) => self.render_program_module(i, p),
             });
@@ -201,6 +225,7 @@ impl Component for ProgramModuleComponent {
         } else { "".to_string() };
         html! {
             <div ref=self.self_ref.clone() style=style class="program_module">
+                {self.props.program_module.id}
                 <div onmousemove=mouse_move class="program_module_options">
                     {for options}
                 </div>
@@ -209,9 +234,7 @@ impl Component for ProgramModuleComponent {
     }
 
     fn rendered(&mut self, first_render: bool) {
-        if first_render {
-            self.link.send_message(Self::Message::UpdateSelfRect);
-        }
+        self.link.send_message(Self::Message::UpdateSelfRect);
     }
 }
 
@@ -225,26 +248,20 @@ fn set_all_input_disabled(base: &Element, disabled: bool) {
     }
 }
 
-impl ProgramModuleComponent {
+impl<Controller: DotEveryEditorController + Serialize + Deserialize<'static>> ProgramModuleComponent<Controller> {
     fn render_string_sign(node_ref: NodeRef, s: String) -> Html {
         html! {<span ref=node_ref class="program_module_option program_module_option_string_sign">{s}</span>}
     }
-}
 
-impl ProgramModuleComponent {
     fn render_string_input(node_ref: NodeRef, onmousemove: Callback<MouseEvent>, value: String) -> Html {
         html! {<input ref=node_ref onmousemove=onmousemove class="program_module_option program_module_option_string_input" value=value/>}
     }
-}
 
-impl ProgramModuleComponent {
     fn string_input_mousemove(e: MouseEvent) -> ProgramModuleMessage {
         if e.buttons() == 1 { e.stop_propagation(); }
         ProgramModuleMessage::Ignore
     }
-}
 
-impl ProgramModuleComponent {
     fn render_program_module(&self, i: usize, p: &Option<ProgramModule>) -> Html {
         match p {
             Some(p) => {
@@ -253,11 +270,12 @@ impl ProgramModuleComponent {
                     program_module: p,
                     rect_changed_callback: Some(self.link.callback(|(id, rect)| ProgramModuleMessage::UpdateChildRect { id, rect })),
                 };
-                html! {
+                let html: Html = html! {
                     <div ref=self.options_node_ref[i].clone() class="program_module_option program_module_option_module">
-                        <ProgramModuleComponent with p/>
+                        <ProgramModuleComponent<Controller> with p/>
                     </div>
-                }
+                };
+                html
             }
             None => {
                 let placeholder = if self.is_hovering(self.options_node_ref[i].clone()) {
@@ -269,11 +287,12 @@ impl ProgramModuleComponent {
                         <div class="program_module_option_program_module_placeholder"/>
                     }
                 };
-                html! {
+                let html: Html = html! {
                     <div ref=self.options_node_ref[i].clone() class="program_module_option program_module_option_module">
                         {placeholder}
                     </div>
-                }
+                };
+                html
             }
         }
     }
@@ -286,8 +305,6 @@ impl ProgramModuleComponent {
                     rect.y() <= (y as f64) && (y as f64) <= rect.y() + rect.height() {
                     return true;
                 }
-            } else {
-                unreachable!();
             }
         }
         false

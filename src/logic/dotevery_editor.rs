@@ -1,11 +1,11 @@
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use yew::prelude::Properties;
 
 use crate::logic::program_module::ProgramModule;
 use crate::logic::program_module_list::ProgramModuleList;
 
 #[derive(PartialEq, Debug, Clone)]
-pub(crate) enum DotEveryEditorErrorMessage {
+pub enum DotEveryEditorErrorMessage {
     IndexOutOfRange,
     NotFound,
     ModuleToGetMustBeProgramModule,
@@ -17,14 +17,18 @@ pub(crate) enum DotEveryEditorErrorMessage {
 
 pub(crate) type DotEveryEditorResult<T> = Result<T, DotEveryEditorErrorMessage>;
 
-#[derive(Clone)]
-pub(crate) struct DotEveryEditor {
+#[derive(Clone, Debug, Serialize, Deserialize)]
+pub struct DotEveryEditor {
+    pub(crate) id: Uuid,
     pub(crate) list: ProgramModuleList,
 }
 
 impl DotEveryEditor {
-    pub fn new(list: ProgramModuleList) -> Self {
+    pub fn new(mut list: ProgramModuleList) -> Self {
+        let id = Uuid::new_v4();
+        list.parent = Some(id);
         Self {
+            id,
             list,
         }
     }
@@ -33,12 +37,12 @@ impl DotEveryEditor {
         self.list.add(target, index, module)
     }
 
-    pub fn copy(&mut self, dest: Uuid, dest_index: usize, src: Uuid) -> DotEveryEditorResult<()> {
+    pub fn copy(&mut self, src: Uuid, dest: Uuid, dest_index: usize) -> DotEveryEditorResult<()> {
         let module = match self.get_module(src) {
             Ok(module) => module,
             Err(msg) => return Err(DotEveryEditorErrorMessage::ErrorInGetModule(Box::new(msg)))
         };
-        match self.add(dest, dest_index, module) {
+        match self.add(dest, dest_index, module.deep_clone()) {
             Ok(_) => Ok(()),
             Err(msg) => Err(DotEveryEditorErrorMessage::ErrorInAddModule(Box::new(msg))),
         }
@@ -55,5 +59,10 @@ impl DotEveryEditor {
         } else {
             self.list.remove(id)
         }
+    }
+
+    pub fn set_root_children(&mut self, children: Vec<ProgramModule>) -> DotEveryEditorResult<()> {
+        self.list.children = children;
+        Ok(())
     }
 }

@@ -1,26 +1,26 @@
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-use yew::prelude::Properties;
 
 use crate::logic::dotevery_editor::{DotEveryEditorErrorMessage, DotEveryEditorResult};
 use crate::logic::program_module_list::ProgramModuleList;
 use crate::util::Isomorphism;
 
-#[derive(Clone, Debug, PartialEq)]
-pub(crate) enum ProgramModuleOption {
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub enum ProgramModuleOption {
     StringSign(String),
     StringInput(String),
     ProgramModule(Option<ProgramModule>),
 }
 
-#[derive(Clone, Debug, PartialEq)]
-pub(crate) enum ProgramModuleChildItems {
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub enum ProgramModuleChildItems {
     None,
     Block(ProgramModuleList),
     MultiBlock(Vec<ProgramModuleList>),
 }
 
-#[derive(Clone, Debug, PartialEq)]
-pub(crate) struct ProgramModule {
+#[derive(Clone, Debug, PartialEq, Serialize, Deserialize)]
+pub struct ProgramModule {
     pub(crate) id: Uuid,
     pub(crate) parent: Option<Uuid>,
     pub(crate) options: Vec<ProgramModuleOption>,
@@ -29,9 +29,21 @@ pub(crate) struct ProgramModule {
 }
 
 impl ProgramModule {
-    pub fn new(options: Vec<ProgramModuleOption>, child: ProgramModuleChildItems) -> Self {
+    pub fn new(mut options: Vec<ProgramModuleOption>, mut child: ProgramModuleChildItems) -> Self {
+        let id = Uuid::new_v4();
+        for option in &mut options {
+            if let ProgramModuleOption::ProgramModule(Some(module)) = option {
+                module.parent = Some(id);
+            }
+        }
+        match &mut child {
+            ProgramModuleChildItems::None => {}
+            ProgramModuleChildItems::Block(list) => list.parent = Some(id),
+            ProgramModuleChildItems::MultiBlock(lists) =>
+                for list in lists { list.parent = Some(id); },
+        }
         Self {
-            id: Uuid::new_v4(),
+            id,
             parent: None,
             options,
             child,
@@ -46,6 +58,8 @@ impl ProgramModule {
                     if let Some(_) = m {
                         Err(DotEveryEditorErrorMessage::CanNotReplace)
                     } else {
+                        let mut module = module;
+                        module.parent = Some(self.id);
                         *m = Some(module);
                         Ok(())
                     }

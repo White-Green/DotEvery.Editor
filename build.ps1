@@ -45,10 +45,10 @@ while ($true) {
     $to_cargo = $tmp -gt 1
     $to_node = $true
     if ($to_cargo) {
-        docker-compose run --rm cargo
+        docker-compose run cargo
         $to_node = $to_node -and $?
     }
     if ($to_node) {
-        docker-compose run --rm nodewebpack
+        docker-compose run nodewebpack
     }
 }

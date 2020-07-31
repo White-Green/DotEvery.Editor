@@ -12,9 +12,10 @@ use yew::prelude::*;
 
 use crate::components::dotevery_editor::{DotEveryEditorComponent, DotEveryEditorProperties};
 use crate::logic::dotevery_editor::DotEveryEditor;
+use crate::logic::dotevery_editor_controller::{DotEveryEditorController, DotEveryEditorCommand};
 use crate::logic::program_module::{ProgramModule, ProgramModuleChildItems, ProgramModuleOption};
 use crate::logic::program_module_list::ProgramModuleList;
-
+use uuid::Uuid;
 
 #[macro_use]
 mod util;
@@ -52,8 +53,18 @@ pub fn run_app() {
                         ],
                         ProgramModuleChildItems::None)
                 ]));
-        App::<DotEveryEditorComponent>::new().mount_with_props(entry, DotEveryEditorProperties { dotevery_editor: props });
+        App::<DotEveryEditorComponent<i32>>::new().mount_with_props(entry, DotEveryEditorProperties { dotevery_editor: props });
     } else {
         clog!("entry point element is not found.");
+    }
+}
+
+impl DotEveryEditorController for i32 {
+    fn create(command: Callback<DotEveryEditorCommand>) -> Self where Self: Sized {
+        unimplemented!()
+    }
+
+    fn update(&mut self, command_id: Uuid, data: DotEveryEditor) {
+        unimplemented!()
     }
 }
