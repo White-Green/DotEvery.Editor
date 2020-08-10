@@ -1,8 +1,8 @@
-*
+/*
 !/docker/*
-!/dotevery-editor-lib/**/*
-!/dotevery-editor-simple-js/**/*
-!/node
+!/dotevery-editor-lib
+!/dotevery-editor-sample-js
+!/node/*
 !/build.ps1
 !/Cargo.lock
 !/Cargo.toml
