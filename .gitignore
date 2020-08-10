@@ -1,2 +1,12 @@
-/.idea
-/target
+*
+!/docker/*
+!/dotevery-editor-lib/**/*
+!/dotevery-editor-simple-js/**/*
+!/node
+!/build.ps1
+!/Cargo.lock
+!/Cargo.toml
+!/docker-compose.yml
+!/LICENSE
+!/README.md
+!/rust-toolchain

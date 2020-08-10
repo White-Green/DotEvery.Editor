@@ -11,10 +11,15 @@ $watcher_toml.Path = $pwd
 $watcher_toml.Filter = "Cargo.toml"
 $watcher_toml.NotifyFilter = [System.IO.NotifyFilters]::LastWrite -bor [System.IO.NotifyFilters]::FileName -bor [System.IO.NotifyFilters]::DirectoryName
 
-$watcher_src = [System.IO.FileSystemWatcher]::new()
-$watcher_src.Path = [System.IO.Path]::Combine($pwd, "src")
-$watcher_src.NotifyFilter = [System.IO.NotifyFilters]::LastWrite -bor [System.IO.NotifyFilters]::FileName -bor [System.IO.NotifyFilters]::DirectoryName
-$watcher_src.IncludeSubdirectories = $true
+$watcher_lib_src = [System.IO.FileSystemWatcher]::new()
+$watcher_lib_src.Path = [System.IO.Path]::Combine($pwd, "dotevery-editor-lib")
+$watcher_lib_src.NotifyFilter = [System.IO.NotifyFilters]::LastWrite -bor [System.IO.NotifyFilters]::FileName -bor [System.IO.NotifyFilters]::DirectoryName
+$watcher_lib_src.IncludeSubdirectories = $true
+
+$watcher_app_src = [System.IO.FileSystemWatcher]::new()
+$watcher_app_src.Path = [System.IO.Path]::Combine($pwd, "dotevery-editor-simple-js")
+$watcher_app_src.NotifyFilter = [System.IO.NotifyFilters]::LastWrite -bor [System.IO.NotifyFilters]::FileName -bor [System.IO.NotifyFilters]::DirectoryName
+$watcher_app_src.IncludeSubdirectories = $true
 
 $watcher_node = [System.IO.FileSystemWatcher]::new()
 $watcher_node.Path = [System.IO.Path]::Combine($pwd, "node/src")
@@ -22,7 +27,8 @@ $watcher_node.NotifyFilter = [System.IO.NotifyFilters]::LastWrite -bor [System.I
 $watcher_node.IncludeSubdirectories = $true
 
 $watcher_toml.EnableRaisingEvents = $true
-$watcher_src.EnableRaisingEvents = $true
+$watcher_lib_src.EnableRaisingEvents = $true
+$watcher_app_src.EnableRaisingEvents = $true
 $watcher_node.EnableRaisingEvents = $true
 
 while ($true) {
@@ -31,7 +37,10 @@ while ($true) {
         if (-not $watcher_toml.WaitForChanged([System.IO.WatcherChangeTypes]::All, 100).TimedOut) {
             $update = 2;
         }
-        if (-not $watcher_src.WaitForChanged([System.IO.WatcherChangeTypes]::All, 100).TimedOut) {
+        if (-not $watcher_lib_src.WaitForChanged([System.IO.WatcherChangeTypes]::All, 100).TimedOut) {
+            $update = 2;
+        }
+        if (-not $watcher_app_src.WaitForChanged([System.IO.WatcherChangeTypes]::All, 100).TimedOut) {
             $update = 2;
         }
         if (-not $watcher_node.WaitForChanged([System.IO.WatcherChangeTypes]::All, 100).TimedOut -and $update -lt 1) {
