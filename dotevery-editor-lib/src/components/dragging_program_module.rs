@@ -21,7 +21,7 @@ pub(crate) struct DraggingProgramModuleProperties {
     pub(crate) visibility: bool,
 }
 
-pub(crate) struct DraggingProgramModuleComponent<Controller: 'static + DotEveryEditorController + Serialize + Deserialize<'static>> {
+pub(crate) struct DraggingProgramModuleComponent<Controller: 'static + DotEveryEditorController> {
     link: ComponentLink<Self>,
     props: DraggingProgramModuleProperties,
     drag_module_agent_bridge: Box<dyn Bridge<DragModuleAgent<Controller>>>,
@@ -37,7 +37,7 @@ pub(crate) enum DraggingProgramModuleMessage {
     UpdateMousePosition { x: i32, y: i32 },
 }
 
-impl<Controller: 'static + DotEveryEditorController + Serialize + Deserialize<'static>> Component for DraggingProgramModuleComponent<Controller> {
+impl<Controller: 'static + DotEveryEditorController> Component for DraggingProgramModuleComponent<Controller> {
     type Message = DraggingProgramModuleMessage;
     type Properties = DraggingProgramModuleProperties;
 
@@ -137,7 +137,7 @@ fn set_all_input_disabled(base: &Element, disabled: bool) {
     }
 }
 
-impl<Controller: DotEveryEditorController + Serialize + Deserialize<'static>> DraggingProgramModuleComponent<Controller> {
+impl<Controller: DotEveryEditorController> DraggingProgramModuleComponent<Controller> {
     fn render_string_sign(s: String) -> Html {
         html! {<span class="program_module_option program_module_option_string_sign">{s}</span>}
     }

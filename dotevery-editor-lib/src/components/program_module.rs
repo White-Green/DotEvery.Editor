@@ -1,5 +1,3 @@
-
-
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use wasm_bindgen::JsCast;
@@ -18,7 +16,7 @@ pub(crate) struct ProgramModuleProperties {
     pub(crate) rect_changed_callback: Option<Callback<(Uuid, Rect)>>,
 }
 
-pub(crate) struct ProgramModuleComponent<Controller: 'static + DotEveryEditorController + Serialize + Deserialize<'static>> {
+pub(crate) struct ProgramModuleComponent<Controller: 'static + DotEveryEditorController> {
     link: ComponentLink<Self>,
     props: ProgramModuleProperties,
     self_ref: NodeRef,
@@ -45,7 +43,7 @@ pub(crate) enum ProgramModuleMessage {
     RegisterUuid,
 }
 
-impl<Controller: 'static + DotEveryEditorController + Serialize + Deserialize<'static>> Component for ProgramModuleComponent<Controller> {
+impl<Controller: 'static + DotEveryEditorController> Component for ProgramModuleComponent<Controller> {
     type Message = ProgramModuleMessage;
     type Properties = ProgramModuleProperties;
 
@@ -248,7 +246,7 @@ fn set_all_input_disabled(base: &Element, disabled: bool) {
     }
 }
 
-impl<Controller: DotEveryEditorController + Serialize + Deserialize<'static>> ProgramModuleComponent<Controller> {
+impl<Controller: 'static + DotEveryEditorController> ProgramModuleComponent<Controller> {
     fn render_string_sign(node_ref: NodeRef, s: String) -> Html {
         html! {<span ref=node_ref class="program_module_option program_module_option_string_sign">{s}</span>}
     }

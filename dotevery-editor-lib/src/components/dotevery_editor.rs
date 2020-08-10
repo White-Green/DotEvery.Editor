@@ -24,10 +24,9 @@ impl DotEveryEditorProperties {
     }
 }
 
-pub struct DotEveryEditorComponent<Controller: 'static + DotEveryEditorController + Serialize + Deserialize<'static>> {
+pub struct DotEveryEditorComponent<Controller: 'static + DotEveryEditorController> {
     link: ComponentLink<Self>,
     props: DotEveryEditorProperties,
-    controller: Controller,
     dragging_component_props: DraggingProgramModuleProperties,
     drag_module_agent_bridge: Box<dyn Bridge<DragModuleAgent<Controller>>>,
     logic_agent_bridge: Box<dyn Bridge<DotEveryEditorAgent<Controller>>>,
@@ -43,7 +42,7 @@ pub enum DotEveryEditorMessage {
     CreateDragComponent { offset_x: i32, offset_y: i32, module: ProgramModule },
 }
 
-impl<Controller: 'static + DotEveryEditorController + Serialize + Deserialize<'static>> Component for DotEveryEditorComponent<Controller> {
+impl<Controller: 'static + DotEveryEditorController> Component for DotEveryEditorComponent<Controller> {
     type Message = DotEveryEditorMessage;
     type Properties = DotEveryEditorProperties;
 
@@ -71,14 +70,9 @@ impl<Controller: 'static + DotEveryEditorController + Serialize + Deserialize<'s
             offset_y: 0,
             visibility: false,
         };
-        let controller_command = link.callback(|_| {
-            todo!();
-            DotEveryEditorMessage::Ignore
-        });
         Self {
             link,
             props,
-            controller: Controller::create(controller_command),
             dragging_component_props,
             drag_module_agent_bridge,
             logic_agent_bridge,
@@ -98,7 +92,6 @@ impl<Controller: 'static + DotEveryEditorController + Serialize + Deserialize<'s
             }
             Self::Message::UpdateLogicData(dotevery_editor) => {
                 self.props.dotevery_editor = dotevery_editor.clone();
-                self.controller.update(Uuid::new_v4(), dotevery_editor);
                 true
             }
             Self::Message::CreateDragComponent { offset_x, offset_y, module } => {

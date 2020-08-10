@@ -1,6 +1,3 @@
-extern crate wee_alloc;
-
-
 use uuid::Uuid;
 use wasm_bindgen::prelude::*;
 use yew::prelude::*;

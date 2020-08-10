@@ -1,9 +1,5 @@
-
-
-
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
-
 use yew::agent::{Agent, AgentLink, Context, HandlerId};
 
 use crate::components::dotevery_editor_agent::DotEveryEditorAgentInputMessage::*;
@@ -13,8 +9,7 @@ use crate::logic::dotevery_editor_controller::DotEveryEditorController;
 use crate::logic::program_module::ProgramModule;
 use crate::logic::program_module_list::ProgramModuleList;
 
-
-pub(crate) struct DotEveryEditorAgent<Controller: 'static + DotEveryEditorController + Serialize + Deserialize<'static>> {
+pub(crate) struct DotEveryEditorAgent<Controller: 'static + DotEveryEditorController> {
     link: AgentLink<Self>,
     logic: DotEveryEditor,
     manager: Option<HandlerId>,
@@ -41,7 +36,7 @@ pub(crate) enum DotEveryEditorAgentOutputMessage {
     ModuleUpdated(DotEveryEditor)
 }
 
-impl<Controller: 'static + DotEveryEditorController + Serialize + Deserialize<'static>> Agent for DotEveryEditorAgent<Controller> {
+impl<Controller: 'static + DotEveryEditorController> Agent for DotEveryEditorAgent<Controller> {
     type Reach = Context;
     type Message = DotEveryEditorAgentMessage;
     type Input = DotEveryEditorAgentInputMessage;
@@ -103,7 +98,7 @@ impl<Controller: 'static + DotEveryEditorController + Serialize + Deserialize<'s
     }
 }
 
-impl<Controller: DotEveryEditorController + Serialize + Deserialize<'static>> DotEveryEditorAgent<Controller> {
+impl<Controller: 'static + DotEveryEditorController> DotEveryEditorAgent<Controller> {
     fn handle_error(&mut self, error: DotEveryEditorErrorMessage) {
         clog!(format!("{:?}", error));
         clog!(format!("{:?}", self.logic));

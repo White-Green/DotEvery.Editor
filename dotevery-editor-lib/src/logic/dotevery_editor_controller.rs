@@ -1,8 +1,10 @@
+use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use yew::Callback;
 
 use crate::logic::dotevery_editor::DotEveryEditor;
 
+#[derive(Serialize, Deserialize, Debug)]
 pub enum DotEveryEditorCommand {
     Update { data: DotEveryEditor },
     // UpdateLocal { data: DotEveryEditor, module_id: Uuid },TODO

@@ -1,10 +1,10 @@
-use std::collections::HashMap;
-
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use web_sys::Element;
 use yew::{Component, ComponentLink, Html};
 use yew::prelude::*;
+
+use std::collections::HashMap;
 
 use crate::components::drag_module_agent::{DragModuleAgent, DragModuleAgentInputMessage, DragModuleAgentOutputMessage};
 use crate::components::program_module::{ProgramModuleComponent, ProgramModuleProperties};
@@ -18,7 +18,7 @@ pub(crate) struct ProgramModuleListProperties {
     pub(crate) rect_changed_callback: Option<Callback<(Uuid, Rect)>>,
 }
 
-pub(crate) struct ProgramModuleListComponent<Controller: 'static + DotEveryEditorController + Serialize + Deserialize<'static>> {
+pub(crate) struct ProgramModuleListComponent<Controller: 'static + DotEveryEditorController> {
     link: ComponentLink<Self>,
     props: ProgramModuleListProperties,
     hovering_module: Option<(i32, i32, f64, f64)>,
@@ -37,7 +37,7 @@ pub(crate) enum ProgramModuleListMessage {
     RegisterUuid,
 }
 
-impl<Controller: 'static + DotEveryEditorController + Serialize + Deserialize<'static>> Component for ProgramModuleListComponent<Controller> {
+impl<Controller: 'static + DotEveryEditorController> Component for ProgramModuleListComponent<Controller> {
     type Message = ProgramModuleListMessage;
     type Properties = ProgramModuleListProperties;
 

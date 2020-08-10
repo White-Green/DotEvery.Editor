@@ -1,18 +1,18 @@
-use std::collections::{HashMap, HashSet};
-use std::collections::VecDeque;
-
 use bimap::{BiHashMap, Overwritten};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use yew::{Bridge, Bridged};
 use yew::agent::{Agent, AgentLink, Context, HandlerId};
 
+use std::collections::{HashMap, HashSet};
+use std::collections::VecDeque;
+
 use crate::components::dotevery_editor_agent::{DotEveryEditorAgent, DotEveryEditorAgentInputMessage};
 use crate::logic::dotevery_editor_controller::DotEveryEditorController;
 use crate::logic::program_module::ProgramModule;
 use crate::util::Rect;
 
-pub(crate) struct DragModuleAgent<Controller: 'static + DotEveryEditorController + Serialize + Deserialize<'static>> {
+pub(crate) struct DragModuleAgent<Controller: 'static + DotEveryEditorController> {
     link: AgentLink<Self>,
     manager_id: Option<HandlerId>,
     root_module_id: Option<Uuid>,
@@ -57,7 +57,7 @@ pub(crate) enum DragModuleAgentOutputMessage {
     RequestRegisterUuid,
 }
 
-impl<Controller: 'static + DotEveryEditorController + Serialize + Deserialize<'static>> Agent for DragModuleAgent<Controller> {
+impl<Controller: 'static + DotEveryEditorController> Agent for DragModuleAgent<Controller> {
     type Reach = Context;
     type Message = DragModuleMessage;
     type Input = DragModuleAgentInputMessage;
@@ -213,7 +213,7 @@ impl<Controller: 'static + DotEveryEditorController + Serialize + Deserialize<'s
     }
 }
 
-impl<Controller: DotEveryEditorController + Serialize + Deserialize<'static>> DragModuleAgent<Controller> {
+impl<Controller: DotEveryEditorController> DragModuleAgent<Controller> {
     fn insert_uuid(&mut self, uuid: Uuid, handler_id: HandlerId) {
         match self.uuid_map.insert(uuid, handler_id) {
             Overwritten::Left(_, r) => {

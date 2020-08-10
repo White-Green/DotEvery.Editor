@@ -5,12 +5,12 @@ use uuid::Uuid;
 use wasm_bindgen::prelude::*;
 use yew::prelude::*;
 
+use dotevery_editor_lib::clog;
 use dotevery_editor_lib::components::dotevery_editor::{DotEveryEditorComponent, DotEveryEditorProperties};
 use dotevery_editor_lib::logic::dotevery_editor::DotEveryEditor;
 use dotevery_editor_lib::logic::dotevery_editor_controller::{DotEveryEditorCommand, DotEveryEditorController};
 use dotevery_editor_lib::logic::program_module::{ProgramModule, ProgramModuleChildItems, ProgramModuleOption};
 use dotevery_editor_lib::logic::program_module_list::ProgramModuleList;
-use dotevery_editor_lib::clog;
 
 #[global_allocator]
 static ALLOC: wee_alloc::WeeAlloc = wee_alloc::WeeAlloc::INIT;
@@ -49,15 +49,15 @@ pub fn run_app() {
     }
 }
 
-#[derive(Serialize, Deserialize)]
-struct Controller;
+struct Controller { command: Callback<DotEveryEditorCommand> }
 
 impl DotEveryEditorController for Controller {
     fn create(command: Callback<DotEveryEditorCommand>) -> Self where Self: Sized {
-        unimplemented!()
+        clog!("Controller created");
+        Self { command }
     }
 
     fn update(&mut self, command_id: Uuid, data: DotEveryEditor) {
-        unimplemented!()
+        clog!(format!("update {:?}",data));
     }
 }
