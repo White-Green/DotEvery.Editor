@@ -1,11 +1,11 @@
+use std::collections::{HashMap, HashSet};
+use std::collections::VecDeque;
+
 use bimap::{BiHashMap, Overwritten};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 use yew::{Bridge, Bridged};
 use yew::agent::{Agent, AgentLink, Context, HandlerId};
-
-use std::collections::{HashMap, HashSet};
-use std::collections::VecDeque;
 
 use crate::components::dotevery_editor_agent::{DotEveryEditorAgent, DotEveryEditorAgentInputMessage};
 use crate::logic::dotevery_editor_controller::DotEveryEditorController;
@@ -58,7 +58,7 @@ pub enum DragModuleAgentOutputMessage {
 }
 
 impl<Controller: 'static + DotEveryEditorController> Agent for DragModuleAgent<Controller> {
-    type Reach = Context;
+    type Reach = Context<Self>;
     type Message = DragModuleMessage;
     type Input = DragModuleAgentInputMessage;
     type Output = DragModuleAgentOutputMessage;

@@ -13,7 +13,7 @@ crate-type = ["cdylib"]
 [dependencies]
 dotevery-editor-lib = { path = "../dotevery-editor-lib" }
 js-sys = "0.3.39"
-yew = "0.15"
+yew = "0.17"
 wasm-bindgen = "0.2.64"
 wee_alloc = "0.4.5"
 serde = "1.0.111"

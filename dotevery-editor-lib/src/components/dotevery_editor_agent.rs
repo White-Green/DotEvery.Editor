@@ -44,7 +44,7 @@ pub enum DotEveryEditorAgentOutputMessage {
 }
 
 impl<Controller: 'static + DotEveryEditorController> Agent for DotEveryEditorAgent<Controller> {
-    type Reach = Context;
+    type Reach = Context<Self>;
     type Message = DotEveryEditorAgentMessage;
     type Input = DotEveryEditorAgentInputMessage;
     type Output = DotEveryEditorAgentOutputMessage;
