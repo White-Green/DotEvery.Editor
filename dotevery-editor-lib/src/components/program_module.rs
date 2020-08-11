@@ -1,4 +1,4 @@
-use serde::{Deserialize, Serialize};
+
 use uuid::Uuid;
 use wasm_bindgen::JsCast;
 use web_sys::{Element, HtmlInputElement};

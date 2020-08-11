@@ -1,5 +1,3 @@
-use serde::{Deserialize, Serialize};
-use uuid::Uuid;
 use wasm_bindgen::JsCast;
 use wasm_bindgen::prelude::*;
 use yew::{Component, ComponentLink, Html};
@@ -12,15 +10,16 @@ use crate::components::program_module_list::{ProgramModuleListComponent, Program
 use crate::logic::dotevery_editor::DotEveryEditor;
 use crate::logic::dotevery_editor_controller::DotEveryEditorController;
 use crate::logic::program_module::{ProgramModule, ProgramModuleChildItems};
+use crate::logic::program_module_list::ProgramModuleList;
 
-#[derive(Clone, Properties)]
+#[derive(Clone, Properties, Default)]
 pub struct DotEveryEditorProperties {
-    pub(crate) dotevery_editor: DotEveryEditor,
+    // pub(crate) dotevery_editor: DotEveryEditor,
 }
 
 impl DotEveryEditorProperties {
-    pub fn create(dotevery_editor: DotEveryEditor) -> Self {
-        Self { dotevery_editor }
+    pub fn create() -> Self {
+        Self {}
     }
 }
 
@@ -30,16 +29,17 @@ pub struct DotEveryEditorComponent<Controller: 'static + DotEveryEditorControlle
     dragging_component_props: DraggingProgramModuleProperties,
     drag_module_agent_bridge: Box<dyn Bridge<DragModuleAgent<Controller>>>,
     logic_agent_bridge: Box<dyn Bridge<DotEveryEditorAgent<Controller>>>,
+    logic_data: DotEveryEditor,
+    palette_data: Vec<ProgramModule>,
 }
 
 pub enum DotEveryEditorMessage {
     Ignore,
     MouseMove { mouse_x: i32, mouse_y: i32 },
     NoDrag,
-    EndDrag,
     SendDragModuleAgentMessage(DragModuleAgentInputMessage),
-    UpdateLogicData(DotEveryEditor),
-    CreateDragComponent { offset_x: i32, offset_y: i32, module: ProgramModule },
+    OutputFromLogicAgent(DotEveryEditorAgentOutputMessage),
+    OutputFromDragModuleAgent(DragModuleAgentOutputMessage),
 }
 
 impl<Controller: 'static + DotEveryEditorController> Component for DotEveryEditorComponent<Controller> {
@@ -47,23 +47,14 @@ impl<Controller: 'static + DotEveryEditorController> Component for DotEveryEdito
     type Properties = DotEveryEditorProperties;
 
     fn create(props: Self::Properties, link: ComponentLink<Self>) -> Self {
-        let drag_module_callback = link.callback(|msg|
-            match msg {
-                DragModuleAgentOutputMessage::CreateDragComponent { offset_x, offset_y, module } => Self::Message::CreateDragComponent { offset_x, offset_y, module },
-                DragModuleAgentOutputMessage::EndDrag => Self::Message::EndDrag,
-                _ => Self::Message::Ignore,
-            });
-        let logic_callback = link.callback(|msg|
-            match msg {
-                DotEveryEditorAgentOutputMessage::ModuleUpdated(value) => Self::Message::UpdateLogicData(value),
-                _ => Self::Message::Ignore
-            });
+        let drag_module_callback = link.callback(|msg| Self::Message::OutputFromDragModuleAgent(msg));
+        let logic_callback = link.callback(|msg| Self::Message::OutputFromLogicAgent(msg));
         let mut logic_agent_bridge = DotEveryEditorAgent::bridge(logic_callback);
         logic_agent_bridge.send(DotEveryEditorAgentInputMessage::SetMeManager);
-        logic_agent_bridge.send(DotEveryEditorAgentInputMessage::SetRoot(props.dotevery_editor.clone()));
+        // logic_agent_bridge.send(DotEveryEditorAgentInputMessage::SetRoot(props.dotevery_editor.clone()));
         // props.dotevery_editor.list.children.clear();
         let mut drag_module_agent_bridge = DragModuleAgent::bridge(drag_module_callback);
-        drag_module_agent_bridge.send(DragModuleAgentInputMessage::SetRootId(props.dotevery_editor.id.clone()));
+        // drag_module_agent_bridge.send(DragModuleAgentInputMessage::SetRootId(props.dotevery_editor.id.clone()));
         let dragging_component_props = DraggingProgramModuleProperties {
             program_module: ProgramModule::new(Vec::new(), ProgramModuleChildItems::None),
             offset_x: 0,
@@ -76,28 +67,45 @@ impl<Controller: 'static + DotEveryEditorController> Component for DotEveryEdito
             dragging_component_props,
             drag_module_agent_bridge,
             logic_agent_bridge,
+            logic_data: DotEveryEditor::new(ProgramModuleList::new(Vec::new())),
+            palette_data: Vec::new(),
         }
     }
 
     fn update(&mut self, msg: Self::Message) -> bool {
         match msg {
             Self::Message::Ignore => false,
-            Self::Message::EndDrag => {
-                self.dragging_component_props.visibility = false;
-                true
-            }
             Self::Message::SendDragModuleAgentMessage(msg) => {
                 self.drag_module_agent_bridge.send(msg);
                 false
             }
-            Self::Message::UpdateLogicData(dotevery_editor) => {
-                self.props.dotevery_editor = dotevery_editor.clone();
-                true
-            }
-            Self::Message::CreateDragComponent { offset_x, offset_y, module } => {
-                self.dragging_component_props = DraggingProgramModuleProperties { offset_x, offset_y, program_module: module, visibility: true };
-                true
-            }
+            Self::Message::OutputFromLogicAgent(msg) =>
+                match msg {
+                    DotEveryEditorAgentOutputMessage::ModuleUpdated(logic) => {
+                        if self.logic_data.id != logic.id {
+                            self.drag_module_agent_bridge.send(DragModuleAgentInputMessage::SetRootId(logic.id));
+                        }
+                        self.logic_data = logic;
+                        true
+                    }
+                    DotEveryEditorAgentOutputMessage::PaletteUpdated(palette) => {
+                        self.palette_data = palette;
+                        true
+                    }
+                    _ => false
+                }
+            Self::Message::OutputFromDragModuleAgent(msg) =>
+                match msg {
+                    DragModuleAgentOutputMessage::CreateDragComponent { offset_x, offset_y, module } => {
+                        self.dragging_component_props = DraggingProgramModuleProperties { offset_x, offset_y, program_module: module, visibility: true };
+                        true
+                    }
+                    DragModuleAgentOutputMessage::EndDrag => {
+                        self.dragging_component_props.visibility = false;
+                        true
+                    }
+                    _ => false,
+                }
             Self::Message::MouseMove { mouse_x, mouse_y } => {
                 self.drag_module_agent_bridge.send(DragModuleAgentInputMessage::UpdateMousePosition { x: mouse_x, y: mouse_y });
                 false
@@ -115,7 +123,7 @@ impl<Controller: 'static + DotEveryEditorController> Component for DotEveryEdito
     }
 
     fn view(&self) -> Html {
-        let list = self.props.dotevery_editor.list.clone();
+        let list = self.logic_data.list.clone();
         let list = ProgramModuleListProperties {
             program_module_list: list,
             rect_changed_callback: None,
@@ -154,7 +162,7 @@ impl<Controller: 'static + DotEveryEditorController> Component for DotEveryEdito
             if let Err(err) = window.add_event_listener_with_callback("mousemove", closure.as_ref().unchecked_ref()) {
                 clog!("add mousemove event failed",err);
             }
-            // closure.forget();
+            closure.forget();
         }
     }
 }

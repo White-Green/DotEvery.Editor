@@ -1,7 +1,8 @@
 extern crate wee_alloc;
 
-use serde::{Deserialize, Serialize};
+
 use uuid::Uuid;
+use wasm_bindgen::__rt::std::sync::{Arc, RwLock};
 use wasm_bindgen::prelude::*;
 use yew::prelude::*;
 
@@ -22,6 +23,21 @@ pub fn run_app() {
     let document = window.document().unwrap();
 
     if let Some(entry) = document.get_element_by_id("app") {
+        App::<DotEveryEditorComponent<Controller>>::new().mount(entry);
+    } else {
+        clog!("entry point element is not found.");
+    }
+}
+
+struct Controller {
+    command: Callback<DotEveryEditorCommand>,
+    data: Arc<RwLock<DotEveryEditor>>,
+    palette: Arc<RwLock<Vec<ProgramModule>>>,
+}
+
+impl DotEveryEditorController for Controller {
+    fn create(command: Callback<DotEveryEditorCommand>, data: Arc<RwLock<DotEveryEditor>>, palette: Arc<RwLock<Vec<ProgramModule>>>) -> Self where Self: Sized {
+        clog!("Controller created");
         let props = DotEveryEditor::new(
             ProgramModuleList::new(
                 vec![
@@ -43,21 +59,35 @@ pub fn run_app() {
                         ],
                         ProgramModuleChildItems::None)
                 ]));
-        App::<DotEveryEditorComponent<Controller>>::new().mount_with_props(entry, DotEveryEditorProperties::create(props));
-    } else {
-        clog!("entry point element is not found.");
+        let palette_data = vec![
+            ProgramModule::new(
+                vec![
+                    ProgramModuleOption::StringSign("VariableDefinition".to_string()),
+                    ProgramModuleOption::ProgramModule(
+                        Some(ProgramModule::new(
+                            vec![
+                                ProgramModuleOption::StringInput("System.Int32".to_string()),
+                            ],
+                            ProgramModuleChildItems::None))),
+                ],
+                ProgramModuleChildItems::None),
+            ProgramModule::new(
+                vec![
+                    ProgramModuleOption::StringSign("VariableDefinition".to_string()),
+                    ProgramModuleOption::ProgramModule(None),
+                ],
+                ProgramModuleChildItems::None)
+        ];
+        *data.write().unwrap() = props;
+        *palette.write().unwrap() = palette_data;
+        Self {
+            command,
+            data,
+            palette,
+        }
     }
-}
 
-struct Controller { command: Callback<DotEveryEditorCommand> }
-
-impl DotEveryEditorController for Controller {
-    fn create(command: Callback<DotEveryEditorCommand>) -> Self where Self: Sized {
-        clog!("Controller created");
-        Self { command }
-    }
-
-    fn update(&mut self, command_id: Uuid, data: DotEveryEditor) {
-        clog!(format!("update {:?}",data));
+    fn update(&mut self) {
+        clog!(format!("update data"));
     }
 }

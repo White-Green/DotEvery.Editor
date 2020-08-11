@@ -1,4 +1,4 @@
-use serde::{Deserialize, Serialize};
+
 use uuid::Uuid;
 use web_sys::Element;
 use yew::{Component, ComponentLink, Html};

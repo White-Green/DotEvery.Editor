@@ -47,7 +47,7 @@ pub enum DragModuleAgentInputMessage {
 }
 
 #[derive(Serialize, Deserialize)]
-pub(crate) enum DragModuleAgentOutputMessage {
+pub enum DragModuleAgentOutputMessage {
     CreateDragComponent { offset_x: i32, offset_y: i32, module: ProgramModule },
     StartDrag,
     EndDrag,
