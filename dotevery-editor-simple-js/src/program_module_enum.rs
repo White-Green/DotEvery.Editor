@@ -93,7 +93,7 @@ fn create_module_value_add() -> ProgramModule<ProgramModuleType> {
 
 fn create_module_value_sub() -> ProgramModule<ProgramModuleType> {
     ProgramModule::new(
-        vec![ProgramModuleOption::ProgramModule(None), ProgramModuleOption::StringSign(String::from("―")), ProgramModuleOption::ProgramModule(None)],
+        vec![ProgramModuleOption::ProgramModule(None), ProgramModuleOption::StringSign(String::from("－")), ProgramModuleOption::ProgramModule(None)],
         ProgramModuleChildItems::None,
         ProgramModuleType::ValueSub,
     )

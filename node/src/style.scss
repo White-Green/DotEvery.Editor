@@ -91,6 +91,7 @@
   flex-direction: row;
   margin-left: 30px;
   border: solid 1px #666;
+  min-height: 50px;
 }
 
 .program_module_child_vertical {
@@ -98,4 +99,5 @@
   flex-direction: column;
   margin-left: 30px;
   border: solid 1px #666;
+  min-width: 50px;
 }

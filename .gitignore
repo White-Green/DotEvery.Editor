@@ -5,6 +5,8 @@
 !/dotevery-editor-simple-js
 !/node
 !/build.ps1
+!/start-web-server.ps1
+!/stop-all-server.ps1
 !/Cargo.lock
 !/Cargo.toml
 !/docker-compose.yml
