@@ -1,0 +1,1 @@
+docker-compose run nodewebpack npm install

@@ -184,29 +184,30 @@ fn compile(data: DotEveryEditor<ProgramModuleType>, variables: &HashSet<String>)
 fn compile_inner(module: &ProgramModule<ProgramModuleType>) -> Result<String, CompileError> {
     match &module.type_data {
         ProgramModuleType::Print => {
-            match &module.options[1] {
-                ProgramModuleOption::ProgramModule(Some(inner_module)) => {
+            match &module.options.get(1) {
+                Some(ProgramModuleOption::ProgramModule(Some(inner_module))) => {
                     match compile_inner(&inner_module) {
                         Ok(s) => { Ok(format!("console.log({});", s)) }
                         e => e,
                     }
                 }
-                ProgramModuleOption::ProgramModule(None) => {
+                Some(ProgramModuleOption::ProgramModule(None)) => {
                     Ok(format!("console.log(\"\");"))
                 }
                 _ => { Err(CompileError::ModuleStructureError) }
             }
         }
         ProgramModuleType::StringLiteral => {
-            if let ProgramModuleOption::StringInput(s) = &module.options[1] {
+            if let Some(ProgramModuleOption::StringInput(s)) = &module.options.get(1) {
+                let s = s.replace("\"", "\\\"");
                 Ok(format!("\"{}\"", s))
             } else {
                 Err(CompileError::ModuleStructureError)
             }
         }
         ProgramModuleType::NumberLiteral => {
-            if let ProgramModuleOption::StringInput(s) = &module.options[1] {
-                Ok(format!("parseFloat({})", s))
+            if let Some(ProgramModuleOption::StringInput(s)) = &module.options.get(1) {
+                Ok(format!("parseFloat(\"{}\")", s))
             } else {
                 Err(CompileError::ModuleStructureError)
             }

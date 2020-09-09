@@ -4,6 +4,7 @@
 !/dotevery-editor-lib
 !/dotevery-editor-simple-js
 !/node
+!/init-npm.ps1
 !/build.ps1
 !/start-web-server.ps1
 !/stop-all-server.ps1
