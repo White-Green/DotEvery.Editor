@@ -10,11 +10,21 @@ macro_rules! clog {
 }
 
 #[derive(Clone, Debug)]
-pub(crate) struct Rect {
+pub struct Rect {
     pub x: f64,
     pub y: f64,
     pub w: f64,
     pub h: f64,
+}
+
+impl Rect {
+    pub fn encloses(&self, x: f64, y: f64) -> bool {
+        self.x < x && x < self.x + self.w && self.y < y && y < self.y + self.y + self.h
+    }
+
+    pub fn center(&self) -> (f64, f64) {
+        (self.x + self.w / 2f64, self.y + self.h / 2f64)
+    }
 }
 
 pub trait Isomorphism {

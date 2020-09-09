@@ -1,3 +1,6 @@
+docker-compose run cargo
+docker-compose run nodewebpack
+exit
 docker-compose down
 docker-compose run -d --service-port nginx
 

@@ -10,16 +10,17 @@ edition = "2018"
 #crate-type = ["cdylib"]
 
 [dependencies]
-js-sys="0.3.39"
+js-sys = "0.3.39"
 yew = "0.17"
 wasm-bindgen = "0.2.64"
 serde = "1.0.111"
-uuid={version="0.8.1",features=["serde","v4","wasm-bindgen"]}
-bimap="0.4.0"
+either = "1.6.0"
+uuid = { version = "0.8.1", features = ["serde", "v4", "wasm-bindgen"] }
+bimap = "0.4.0"
 
 [dependencies.web-sys]
-version="0.3.39"
-features=["HtmlAnchorElement","Exception","CssStyleDeclaration","DomRect","Element","HtmlInputElement","Node","NodeList"]
+version = "0.3.39"
+features = ["HtmlAnchorElement", "Exception", "CssStyleDeclaration", "DomRect", "Element", "HtmlInputElement", "Node", "NodeList", "Window"]
 
 [dev-dependencies]
 wasm-bindgen-test = "0.3.14"

@@ -2,70 +2,105 @@ use std::sync::{Arc, RwLock};
 
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
+use yew::{Bridge, Bridged};
 use yew::agent::{Agent, AgentLink, Context, HandlerId};
 
 use crate::components::dotevery_editor_agent::DotEveryEditorAgentInputMessage::*;
 use crate::components::dotevery_editor_agent::DotEveryEditorAgentOutputMessage::*;
-use crate::logic::dotevery_editor::{DotEveryEditor, DotEveryEditorErrorMessage};
+use crate::components::dotevery_editor_agent_bridge::DotEveryEditorAgentBridge;
+use crate::logic::dotevery_editor::{DotEveryEditor, DotEveryEditorErrorMessage, DotEveryEditorOperationIndex};
 use crate::logic::dotevery_editor_controller::{DotEveryEditorCommand, DotEveryEditorController};
-use crate::logic::program_module::ProgramModule;
-use crate::logic::program_module_list::ProgramModuleList;
+use crate::logic::program_module::{ProgramModule, ProgramModuleOption};
 
-pub(crate) struct DotEveryEditorAgent<Controller: 'static + DotEveryEditorController> {
+// use crate::logic::program_module_list::ProgramModuleList;
+
+pub struct DotEveryEditorAgent<Controller, Type>
+    where Controller: 'static + DotEveryEditorController<Type>,
+          Type: 'static + Clone + PartialEq {
     link: AgentLink<Self>,
-    logic: Arc<RwLock<DotEveryEditor>>,
+    logic: Arc<RwLock<DotEveryEditor<Type>>>,
+    palette: Arc<RwLock<Vec<ProgramModule<Type>>>>,
     manager: Option<HandlerId>,
+    controller_proxy: Option<HandlerId>,
     controller: Controller,
-    palette: Arc<RwLock<Vec<ProgramModule>>>,
 }
 
 #[derive(Clone)]
-pub(crate) enum DotEveryEditorAgentMessage {
+pub enum DotEveryEditorAgentMessage<T> {
     ModuleUpdated,
     MsgFromController(DotEveryEditorCommand),
+    ResponseFromController(HandlerId, T),
     Ignore,
 }
 
 #[derive(Serialize, Deserialize)]
-pub(crate) enum DotEveryEditorAgentInputMessage {
+pub enum DotEveryEditorAgentInputMessage<Type: 'static + Clone + PartialEq, IN> {
     SetMeManager,
+    SetMeControllerProxy,
+    MsgToController(HandlerId, IN),
 
     // SetRoot(DotEveryEditor),
-    Add(Uuid, usize, ProgramModule),
+    Add(Uuid, DotEveryEditorOperationIndex, ProgramModule<Type>),
     //src,dest,index
-    Copy(Uuid, Uuid, usize),
+    Copy(Uuid, Uuid, DotEveryEditorOperationIndex),
     Remove(Uuid),
+    UpdateInput { id: Uuid, index: usize, value: String },
 }
 
 #[derive(Serialize, Deserialize)]
-pub enum DotEveryEditorAgentOutputMessage {
-    ModuleUpdated(DotEveryEditor),
-    PaletteUpdated(Vec<ProgramModule>),
+pub enum DotEveryEditorAgentOutputMessage<Type: 'static + Clone + PartialEq, OUT> {
+    ModuleUpdated(DotEveryEditor<Type>),
+    PaletteUpdated(Vec<ProgramModule<Type>>),
+    ResponseFromController(HandlerId, OUT),
 }
 
-impl<Controller: 'static + DotEveryEditorController> Agent for DotEveryEditorAgent<Controller> {
+impl<Controller, T> Agent for DotEveryEditorAgent<Controller, T>
+    where Controller: 'static + DotEveryEditorController<T>,
+          T: 'static + Clone + PartialEq {
     type Reach = Context<Self>;
-    type Message = DotEveryEditorAgentMessage;
-    type Input = DotEveryEditorAgentInputMessage;
-    type Output = DotEveryEditorAgentOutputMessage;
+    type Message = DotEveryEditorAgentMessage<Controller::Output>;
+    type Input = DotEveryEditorAgentInputMessage<T, Controller::Input>;
+    type Output = DotEveryEditorAgentOutputMessage<T, Controller::Output>;
 
     fn create(link: AgentLink<Self>) -> Self {
-        let controller_callback = link.callback(|msg| { Self::Message::MsgFromController(msg) });
-        let data = Arc::new(RwLock::new(DotEveryEditor::new(ProgramModuleList::new(Vec::new()))));
+        let data = Arc::new(RwLock::new(DotEveryEditor::new(Vec::new())));
         let palette = Arc::new(RwLock::new(Vec::new()));
+        let bridge = DotEveryEditorAgentBridge::<Controller, T>::create(
+            link.callback(|msg| Self::Message::MsgFromController(msg)),
+            link.callback(|(id, msg)| Self::Message::ResponseFromController(id, msg)),
+        );
         Self {
             link,
             logic: Arc::clone(&data),
-            manager: None,
-            controller: Controller::create(controller_callback, Arc::clone(&data), Arc::clone(&palette)),
             palette: Arc::clone(&palette),
+            manager: None,
+            controller_proxy: None,
+            controller: Controller::create(Arc::clone(&data), Arc::clone(&palette), bridge),
         }
     }
 
     fn update(&mut self, msg: Self::Message) {
         match msg {
             Self::Message::ModuleUpdated => self.controller.update(),
-            Self::Message::MsgFromController(_) => { todo!() }
+            Self::Message::MsgFromController(msg) => {
+                if let Some(manager) = self.manager {
+                    match msg {
+                        DotEveryEditorCommand::Update => {
+                            self.link.respond(manager, ModuleUpdated(self.logic.read().unwrap().clone()));
+                        }
+                        DotEveryEditorCommand::UpdatePalette => {
+                            self.link.respond(manager, PaletteUpdated(self.palette.read().unwrap().clone()));
+                        }
+                    }
+                } else {
+                    clog!("manager is not found");
+                }
+            }
+            Self::Message::ResponseFromController(id, msg) => {
+                if let Some(proxy) = self.controller_proxy {
+                    self.link.respond(proxy, Self::Output::ResponseFromController(id, msg));
+                }
+            }
             Self::Message::Ignore => {}
         }
     }
@@ -77,6 +112,12 @@ impl<Controller: 'static + DotEveryEditorController> Agent for DotEveryEditorAge
                 self.link.respond(id, Self::Output::ModuleUpdated(self.logic.read().unwrap().clone()));
                 self.link.respond(id, Self::Output::PaletteUpdated(self.palette.read().unwrap().clone()));
             }
+            SetMeControllerProxy => {
+                self.controller_proxy = Some(id);
+            }
+            MsgToController(id, msg) => {
+                self.controller.handle_input(msg, id);
+            }
             // SetRoot(root) => {
             //     self.logic = root;
             //     self.call_update(Self::Message::ModuleUpdated);
@@ -85,13 +126,17 @@ impl<Controller: 'static + DotEveryEditorController> Agent for DotEveryEditorAge
             //     }
             // }
             Add(id, index, module) => {
-                let result = self.logic.write().unwrap().add(id, index, module);
+                let result = self.logic.write().unwrap().add(id, index, &module);
+                // clog!("add operation");
                 if let Err(err) = result {
                     self.handle_error(err);
                 } else {
-                    self.call_update(Self::Message::ModuleUpdated);
+                    // clog!("add operation succeed");
+                    self.link.send_message(Self::Message::ModuleUpdated);
                     if let Some(manager) = self.manager {
                         self.link.respond(manager, ModuleUpdated(self.logic.read().unwrap().clone()));
+                    } else {
+                        clog!("manager is not found");
                     }
                 }
             }
@@ -100,7 +145,7 @@ impl<Controller: 'static + DotEveryEditorController> Agent for DotEveryEditorAge
                 if let Err(err) = result {
                     self.handle_error(err);
                 } else {
-                    self.call_update(Self::Message::ModuleUpdated);
+                    self.link.send_message(Self::Message::ModuleUpdated);
                     if let Some(manager) = self.manager {
                         self.link.respond(manager, ModuleUpdated(self.logic.read().unwrap().clone()));
                     }
@@ -111,9 +156,17 @@ impl<Controller: 'static + DotEveryEditorController> Agent for DotEveryEditorAge
                 if let Err(err) = result {
                     self.handle_error(err);
                 } else {
-                    self.call_update(Self::Message::ModuleUpdated);
+                    self.link.send_message(Self::Message::ModuleUpdated);
                     if let Some(manager) = self.manager {
                         self.link.respond(manager, ModuleUpdated(self.logic.read().unwrap().clone()));
+                    }
+                }
+            }
+            UpdateInput { id, index, value } => {
+                let mut logic = self.logic.write().unwrap();
+                if let Ok(module) = logic.get_module_mut(id) {
+                    if let Some(ProgramModuleOption::StringInput(s)) = module.options.get_mut(index) {
+                        *s = value;
                     }
                 }
             }
@@ -121,13 +174,11 @@ impl<Controller: 'static + DotEveryEditorController> Agent for DotEveryEditorAge
     }
 }
 
-impl<Controller: 'static + DotEveryEditorController> DotEveryEditorAgent<Controller> {
+impl<Controller, T> DotEveryEditorAgent<Controller, T>
+    where Controller: 'static + DotEveryEditorController<T>,
+          T: 'static + Clone + PartialEq {
     fn handle_error(&mut self, error: DotEveryEditorErrorMessage) {
-        clog!(format!("{:?}", error));
-        clog!(format!("{:?}", self.logic));
-    }
-
-    fn call_update(&mut self, msg: DotEveryEditorAgentMessage) {
-        self.link.callback(move |_| msg.clone()).emit(());
+        // clog!(format!("{:?}", error));
+        // clog!(format!("{:?}", self.logic));
     }
 }

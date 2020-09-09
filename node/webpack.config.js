@@ -2,7 +2,8 @@ const HtmlWebpackPlugin = require('html-webpack-plugin')
 const path = require('path')
 
 const MODE = "development";
-const enableSourceMap = MODE === "development";
+// const enableSourceMap = MODE === "development";
+const enableSourceMap = MODE === "production";
 
 module.exports = {
     mode: MODE,
