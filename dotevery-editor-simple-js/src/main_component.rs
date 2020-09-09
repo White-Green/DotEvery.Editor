@@ -98,7 +98,12 @@ impl Component for MainComponent {
                                 Some(format!("{}{}{}", prefix, code, suffix))
                             }
                             Err(msg) => {
-                                self.compile_result = format!("{:?}", msg);
+                                self.compile_result = match msg {
+                                    CompileError::NeedProgramModule(traceback) => {
+                                        format!("NeedProgramModuleError\n{}", traceback)
+                                    }
+                                    e => format!("{:?}", e)
+                                };
                                 self.exec_result = String::new();
                                 None
                             }
@@ -159,7 +164,7 @@ impl Component for MainComponent {
 #[derive(Debug)]
 enum CompileError {
     ModuleStructureError,
-    NeedProgramModule,
+    NeedProgramModule(String),
 }
 
 fn compile(data: DotEveryEditor<ProgramModuleType>, variables: &HashSet<String>) -> Result<(String, String, String), CompileError> {
@@ -169,9 +174,12 @@ fn compile(data: DotEveryEditor<ProgramModuleType>, variables: &HashSet<String>)
     for variable in variables {
         s.push_str(&format!("let {} = undefined;\n", variable));
     }
-    for module in &data.list {
+    for (i, module) in data.list.iter().enumerate() {
         match compile_inner(module) {
             Ok(c) => { s.push_str(&format!("{}\n", c)); }
+            Err(CompileError::NeedProgramModule(traceback)) => {
+                return Err(CompileError::NeedProgramModule(format!("at block[{}]\n{}", i, traceback)));
+            }
             Err(err) => { return Err(err); }
         }
     }
@@ -188,7 +196,10 @@ fn compile_inner(module: &ProgramModule<ProgramModuleType>) -> Result<String, Co
                 Some(ProgramModuleOption::ProgramModule(Some(inner_module))) => {
                     match compile_inner(&inner_module) {
                         Ok(s) => { Ok(format!("console.log({});", s)) }
-                        e => e,
+                        Err(CompileError::NeedProgramModule(traceback)) => {
+                            Err(CompileError::NeedProgramModule(format!("at print argument\n{}", traceback)))
+                        }
+                        e => e
                     }
                 }
                 Some(ProgramModuleOption::ProgramModule(None)) => {
@@ -220,21 +231,27 @@ fn compile_inner(module: &ProgramModule<ProgramModuleType>) -> Result<String, Co
                 if let Some(module) = module {
                     match compile_inner(module) {
                         Ok(s) => { format!("switch ({}) {{", s) }
+                        Err(CompileError::NeedProgramModule(traceback)) => {
+                            return Err(CompileError::NeedProgramModule(format!("at switch argument\n{}", traceback)));
+                        }
                         e => return e,
                     }
                 } else {
-                    return Err(CompileError::NeedProgramModule);
+                    return Err(CompileError::NeedProgramModule(String::from("at switch argument")));
                 }
             } else {
                 return Err(CompileError::ModuleStructureError);
             };
             let code = if let ProgramModuleChildItems::BlockHorizontal(list) = &module.child {
                 let mut code = String::new();
-                for module in list {
+                for (i, module) in list.iter().enumerate() {
                     match compile_inner(module) {
                         Ok(s) => {
                             code.push_str(&s);
                             code.push('\n');
+                        }
+                        Err(CompileError::NeedProgramModule(traceback)) => {
+                            return Err(CompileError::NeedProgramModule(format!("at switch block[{}]\n{}", i, traceback)));
                         }
                         e => return e,
                     }
@@ -251,21 +268,27 @@ fn compile_inner(module: &ProgramModule<ProgramModuleType>) -> Result<String, Co
                 if let Some(module) = module {
                     match compile_inner(module) {
                         Ok(s) => { format!("case {}:", s) }
+                        Err(CompileError::NeedProgramModule(traceback)) => {
+                            return Err(CompileError::NeedProgramModule(format!("at case argument\n{}", traceback)));
+                        }
                         e => return e,
                     }
                 } else {
-                    return Err(CompileError::NeedProgramModule);
+                    return Err(CompileError::NeedProgramModule(String::from("at case argument")));
                 }
             } else {
                 return Err(CompileError::ModuleStructureError);
             };
             let code = if let ProgramModuleChildItems::BlockVertical(list) = &module.child {
                 let mut code = String::new();
-                for module in list {
+                for (i, module) in list.iter().enumerate() {
                     match compile_inner(module) {
                         Ok(s) => {
                             code.push_str(&s);
                             code.push('\n');
+                        }
+                        Err(CompileError::NeedProgramModule(traceback)) => {
+                            return Err(CompileError::NeedProgramModule(format!("at case block[{}]\n{}", i, traceback)));
                         }
                         e => return e,
                     }
@@ -281,11 +304,14 @@ fn compile_inner(module: &ProgramModule<ProgramModuleType>) -> Result<String, Co
             let prefix = String::from("default:");
             let code = if let ProgramModuleChildItems::BlockVertical(list) = &module.child {
                 let mut code = String::new();
-                for module in list {
+                for (i, module) in list.iter().enumerate() {
                     match compile_inner(module) {
                         Ok(s) => {
                             code.push_str(&s);
                             code.push('\n');
+                        }
+                        Err(CompileError::NeedProgramModule(traceback)) => {
+                            return Err(CompileError::NeedProgramModule(format!("at default block[{}]\n{}", i, traceback)));
                         }
                         e => return e,
                     }
@@ -297,27 +323,30 @@ fn compile_inner(module: &ProgramModule<ProgramModuleType>) -> Result<String, Co
             let suffix = String::from("break;");
             Ok(format!("{}\n{}{}", prefix, code, suffix))
         }
-        ProgramModuleType::ValueAssign => match compile_binary_operator(&module, "=") {
+        ProgramModuleType::ValueAssign => match compile_binary_operator(&module, "=", "assignment") {
             Ok(s) => { Ok(format!("{};", s)) }
             e => e
         },
-        ProgramModuleType::ValueAdd => compile_binary_operator(&module, "+"),
-        ProgramModuleType::ValueSub => compile_binary_operator(&module, "-"),
-        ProgramModuleType::ValueMul => compile_binary_operator(&module, "*"),
-        ProgramModuleType::ValueDiv => compile_binary_operator(&module, "/"),
-        ProgramModuleType::ValueRem => compile_binary_operator(&module, "%"),
+        ProgramModuleType::ValueAdd => compile_binary_operator(&module, "+", "add"),
+        ProgramModuleType::ValueSub => compile_binary_operator(&module, "-", "sub"),
+        ProgramModuleType::ValueMul => compile_binary_operator(&module, "*", "multiply"),
+        ProgramModuleType::ValueDiv => compile_binary_operator(&module, "/", "divide"),
+        ProgramModuleType::ValueRem => compile_binary_operator(&module, "%", "mod"),
     }
 }
 
-fn compile_binary_operator(module: &&ProgramModule<ProgramModuleType>, operator: &str) -> Result<String, CompileError> {
+fn compile_binary_operator(module: &&ProgramModule<ProgramModuleType>, operator: &str, name: &str) -> Result<String, CompileError> {
     let left = if let ProgramModuleOption::ProgramModule(inner_module) = &module.options[0] {
         if let Some(inner_module) = inner_module {
             match compile_inner(&inner_module) {
                 Ok(s) => { s }
+                Err(CompileError::NeedProgramModule(traceback)) => {
+                    return Err(CompileError::NeedProgramModule(format!("at {} operator left argument\n{}", name, traceback)));
+                }
                 e => return e,
             }
         } else {
-            return Err(CompileError::NeedProgramModule);
+            return Err(CompileError::NeedProgramModule(format!("at {} operator left argument", name)));
         }
     } else {
         return Err(CompileError::ModuleStructureError);
@@ -326,10 +355,13 @@ fn compile_binary_operator(module: &&ProgramModule<ProgramModuleType>, operator:
         if let Some(inner_module) = inner_module {
             match compile_inner(&inner_module) {
                 Ok(s) => { s }
+                Err(CompileError::NeedProgramModule(traceback)) => {
+                    return Err(CompileError::NeedProgramModule(format!("at {} operator right argument\n{}", name, traceback)));
+                }
                 e => return e,
             }
         } else {
-            return Err(CompileError::NeedProgramModule);
+            return Err(CompileError::NeedProgramModule(format!("at {} operator right argument", name)));
         }
     } else {
         return Err(CompileError::ModuleStructureError);
