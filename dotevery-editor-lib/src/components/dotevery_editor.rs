@@ -224,7 +224,7 @@ impl<Controller, T> Component for DotEveryEditorComponent<Controller, T>
             let window = web_sys::window().unwrap();
             let callback = self.link.callback(|m| m);
             let closure = Closure::wrap(Box::new(move |e: MouseEvent| {
-                clog!("mousemove", e.page_x(), e.page_y());
+                // clog!("mousemove", e.page_x(), e.page_y());
                 callback.emit(Self::Message::SendDragModuleAgentMessage(DragModuleAgentInputMessage::UpdateMousePosition { x: e.page_x(), y: e.page_y() }));
                 if e.buttons() != 1 {
                     callback.emit(Self::Message::SendDragModuleAgentMessage(DragModuleAgentInputMessage::EndDrag));
