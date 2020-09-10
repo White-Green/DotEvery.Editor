@@ -230,9 +230,9 @@ impl<Controller, T> Component for DotEveryEditorComponent<Controller, T>
                     callback.emit(Self::Message::SendDragModuleAgentMessage(DragModuleAgentInputMessage::EndDrag));
                 }
             }) as Box<dyn FnMut(_)>);
-            // if let Err(err) = window.add_event_listener_with_callback("mousemove", closure.as_ref().unchecked_ref()) {
-            //     clog!("add mousemove event failed",err);
-            // }
+            if let Err(err) = window.add_event_listener_with_callback("mousemove", closure.as_ref().unchecked_ref()) {
+                clog!("add mousemove event failed",err);
+            }
             closure.forget();
         }
         if let Some(element) = self.trash_area_ref.cast::<Element>() {
