@@ -5,10 +5,9 @@
   "main": "index.js",
   "scripts": {},
   "author": "",
-  "license": "ISC",
+  "license": "MIT",
   "dependencies": {
     "bootstrap": "^4.5.0",
-    "env": "0.0.2",
     "jquery": "^3.5.1",
     "popper.js": "^1.16.1"
   },
